@@ -13,6 +13,7 @@ namespace DirectConsumer
 {
     class Program
     {
+        private static bool _doAck = true; 
         static void Main()
         {
             var cancel = new CancellationTokenSource();
@@ -23,23 +24,53 @@ namespace DirectConsumer
             
             Execute(cancel.Token, logger);
 
-            Console.WriteLine("Press enter to finish");
-            Console.ReadLine();
+            while (!cancel.IsCancellationRequested)
+            {
+                Console.Write("#>");
+                var cmd = Console.ReadLine();
+
+                switch (cmd?.Trim())
+                {
+                    case "exit":
+                        cancel.Cancel();
+                        break;
+                
+                    case "a":
+                        _doAck = true;
+                        break;
+                    
+                    case "n":
+                        _doAck = false;
+                        break;
+                }
+            }
         }
 
         private static async void Execute(CancellationToken cancelToken, Logger logger)
         {
             var subscription = await CreateSubscription(logger);
+            
+            if(subscription == null) return;
+            
             while (!cancelToken.IsCancellationRequested)
             {
                 try
                 {
                     var message = await subscription.ReceiveAsync();
-                    await subscription.AcknowledgeAsync(message.MessageId);
-                    var msg = Encoding.UTF8.GetString(message.Data);
-                    logger.Verbose($"Message: {msg} @ {message.MessageId.EntryId}");
+                    if (_doAck)
+                    {
+                        await subscription.AcknowledgeAsync(message.MessageId);
+                        var msg = Encoding.UTF8.GetString(message.Data);
+                        logger.Verbose($"Message: {msg} @ {message.MessageId.EntryId}");
+                    }
+                    else
+                    {
+                        var msg = Encoding.UTF8.GetString(message.Data);
+                        logger.Verbose($"NO ACK Message: {msg} @ {message.MessageId.EntryId}");
+                    }
                 }
                 catch (Exception e)
+
                 {
                     logger.Error($"Message recisive error {e.Message}", e);
                 }
@@ -62,8 +93,11 @@ namespace DirectConsumer
             {
                 return await new ConsumerBuilder(conn)
                     .Topic(config.TopicToRead)
-                    .SubscriptionType(SubscriptionType.Exclusive)
+                    .SubscriptionType(SubscriptionType.Failover)
                     .SubscriptionName(config.ConsumerID)
+                    .AckTimeout(TimeSpan.FromSeconds(30))
+                    .NegativeAckRedeliveryDelay(TimeSpan.FromSeconds(45))
+                    .DeadLettersPolicy(new DeadLettersPolicy(5, null))
                     .SubscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .SubscribeAsync();
                 
