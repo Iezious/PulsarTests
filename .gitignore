@@ -1,0 +1,6 @@
+
+/.idea
+[Bb]in/
+[Oo]bj/
+/*.DotSettings.user
+*.csproj.DotSettings

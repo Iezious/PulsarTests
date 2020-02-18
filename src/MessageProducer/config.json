@@ -1,0 +1,4 @@
+{
+  "URL" : "pulsar://localhost:6650",
+  "TopicToWrite" : "TimeStamps"
+}
