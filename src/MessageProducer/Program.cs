@@ -39,6 +39,7 @@ namespace MessageProducer
             if(producer == null) return;
             
             var cnt = 0;
+            var ra = new Random();
             
             while (!cancelToken.IsCancellationRequested)
             {
@@ -46,30 +47,32 @@ namespace MessageProducer
                 try
                 {
                     var msg = System.Text.Encoding.UTF8.GetBytes($"[{cnt} - msg at {DateTime.UtcNow}]");
-                    var sent = await producer.SendAsync(msg);
-                    logger.Verbose($"Message {cnt} sent - {sent.EntryId}");
+                    var message = producer.NewMessage(msg, (cnt % 100).ToString());
+                    var sent = await producer.SendAsync(message);
+                    logger.Verbose($"Message {cnt} sent - {sent.Partition}");
                 }
                 catch (Exception e)
                 {
                     logger.Error($"Send error for {cnt}" ,e);
+             //       logger.Information($"Producer status: {producer.}");
                 }
                 cnt++;
                 await Task.Delay(500, cancelToken);
             }
         }
 
-        private static async Task<IProducer> CreateProducer(ILogger logger)
+        private static async Task<IProducer<byte[]>> CreateProducer(ILogger logger)
         {
             var config = LoadConfig();
-            var conn = new PulsarClientBuilder()
+            var conn = await new PulsarClientBuilder()
                 .ServiceUrl(config.URL)
-                .Build();
+                .BuildAsync();
 
             try
             {
-                var producer = await new ProducerBuilder(conn)
+                var producer = await conn.NewProducer<byte[]>(Schema.BYTES())
                     .Topic(config.TopicToWrite)
-                    .MessageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .MessageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                     .CompressionType(CompressionType.LZ4)
                     .EnableBatching(false)
                     .CreateAsync();

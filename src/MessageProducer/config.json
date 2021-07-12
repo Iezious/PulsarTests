@@ -1,4 +1,6 @@
 {
-  "URL" : "pulsar://localhost:6650",
-  "TopicToWrite" : "TimeStamps"
+  "aURL" : "pulsar://localhost:6650",
+  "bURL" : "pulsar://172.31.37.191:6650",
+  "URL" : "pulsar://10.234.242.192:6650",
+  "TopicToWrite" : "persistent://SD/global/sergey-test"
 }

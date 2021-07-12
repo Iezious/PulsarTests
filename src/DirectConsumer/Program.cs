@@ -51,17 +51,20 @@ namespace DirectConsumer
             var subscription = await CreateSubscription(logger);
             
             if(subscription == null) return;
+
+            var cnt = 0;
             
             while (!cancelToken.IsCancellationRequested)
             {
                 try
                 {
                     var message = await subscription.ReceiveAsync();
+                    cnt++;
                     if (_doAck)
                     {
                         await subscription.AcknowledgeAsync(message.MessageId);
                         var msg = Encoding.UTF8.GetString(message.Data);
-                        logger.Verbose($"Message: {msg} @ {message.MessageId.EntryId}");
+                        logger.Verbose($"Message: {msg.Substring(0,15)} with {message.Key} @ {message.MessageId.Partition} of {cnt}");
                     }
                     else
                     {
@@ -82,22 +85,23 @@ namespace DirectConsumer
             return JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
         }       
         
-        private static async Task<IConsumer> CreateSubscription(ILogger logger)
+        private static async Task<IConsumer<byte[]>> CreateSubscription(ILogger logger)
         {
             var config = LoadConfig();
-            var conn = new PulsarClientBuilder()
+            var conn = await new PulsarClientBuilder()
                 .ServiceUrl(config.URL)
-                .Build();
+                .BuildAsync();
 
             try
             {
-                return await new ConsumerBuilder(conn)
+                return await conn.NewConsumer<byte[]>(Schema.BYTES())
                     .Topic(config.TopicToRead)
-                    .SubscriptionType(SubscriptionType.Failover)
+                    .SubscriptionType(SubscriptionType.Exclusive)
                     .SubscriptionName(config.ConsumerID)
                     .AckTimeout(TimeSpan.FromSeconds(30))
                     .NegativeAckRedeliveryDelay(TimeSpan.FromSeconds(45))
-                    .DeadLettersPolicy(new DeadLettersPolicy(5, null))
+               //     .ReadCompacted(true)
+                    .DeadLetterPolicy(new DeadLetterPolicy(5))
                     .SubscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .SubscribeAsync();
                 

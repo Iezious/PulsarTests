@@ -1,5 +1,8 @@
 {
-  "URL" : "pulsar://localhost:6650",
-  "TopicToRead" : "TimeStamps",
-  "ConsumerID" : "FailoverConsumer"
+  "aURL" : "pulsar://localhost:6650",
+  "zURL" : "pulsar://172.31.37.191:6650",
+  "URL" : "pulsar://10.234.242.192:6650",
+  "TopicToRead" : "persistent://SD/global/p_Markets",
+  "zTopicToRead" : "persistent://SD/global/sergey-test",
+  "ConsumerID" : "FailoverConsumer13"
 }
